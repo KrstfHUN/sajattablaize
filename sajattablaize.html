@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saját tábla kezelése</title>
+    <style>
+        body {
+            background: #181818;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 400px;
+            margin: 40px auto;
+            background: #232323;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #0008;
+            padding: 24px 24px 16px 24px;
+        }
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 24px;
+        }
+        .form-container {
+            margin-bottom: 24px;
+            padding: 0;
+            background: none;
+            border: none;
+            border-radius: 0;
+            width: 100%;
+        }
+        .form-container label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .form-container input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #111;
+            color: #fff;
+            font-size: 1rem;
+        }
+        .form-container button {
+            background-color: #fff;
+            color: #181818;
+            padding: 10px 0;
+            width: 100%;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .form-container button:hover {
+            background-color: #444;
+            color: #fff;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: #232323;
+            color: #fff;
+            margin-top: 12px;
+        }
+        th, td {
+            border-top: 1px solid #444;
+            border-bottom: 1px solid #444;
+            border-left: 1px solid #444;
+            padding: 8px 6px;
+            text-align: center;
+        }
+        th {
+            background: #333;
+            color: #fff;
+        }
+        td:last-child, th:last-child {
+            border-right: 6px solid #fff;
+        }
+        tr:nth-child(even) {
+            background: #202020;
+        }
+        tr:nth-child(odd) {
+            background: #232323;
+        }
+        button.torles, button.modosit {
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            margin: 0 2px;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+        button.torles:hover {
+            background: #c0392b;
+        }
+        button.modosit:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Emberek kezelése</h1>
+        <div class="form-container">
+            <label for="nev">Név:</label>
+            <input type="text" id="nev" autocomplete="off">
+            <label for="kor">Kor:</label>
+            <input type="number" id="kor" min="0" max="120" autocomplete="off">
+            <input type="hidden" id="dataid">
+            <button id="hozzaad">Hozzáad</button>
+        </div>
+        <div id="table-container"></div>
+    </div>
+    <script>
+        let adatok;
+        const URL = 'https://retoolapi.dev/egnaKl/emberek';
+
+        document.addEventListener("DOMContentLoaded", init);
+
+        async function init() {
+            await loadData();
+            kiiratas();
+            document.getElementById("hozzaad").addEventListener("click", adatfelvetel);
+        }
+
+        let loadData = async () => {
+            const response = await fetch(URL);
+            adatok = await response.json();
+        }
+
+        const kiiratas = () => {
+            let table = document.createElement("table");
+            table.setAttribute("id", "adatok");
+            let header = table.insertRow();
+            header.innerHTML = "<th>Név</th><th>Kor</th><th>Törlés</th><th>Módosítás</th>";
+            if (adatok.length === 0) {
+                let row = table.insertRow();
+                let cell = row.insertCell();
+                cell.colSpan = 4;
+                cell.innerText = "Nincs adat.";
+            } else {
+                adatok.forEach((ember) => {
+                    const ujsor = table.insertRow();
+                    const cellaNev = ujsor.insertCell();
+                    cellaNev.innerText = ember.name || "";
+                    const cellaKor = ujsor.insertCell();
+                    cellaKor.innerText = ember.age || "";
+                    const cellaTorles = ujsor.insertCell();
+                    let torles_gomb = document.createElement("button");
+                    torles_gomb.innerText = "Törlés";
+                    torles_gomb.className = "torles";
+                    torles_gomb.onclick = () => {
+                        deleteClicked(ember);
+                    }
+                    cellaTorles.append(torles_gomb);
+                    const cellaModosit = ujsor.insertCell();
+                    let modosit_gomb = document.createElement("button");
+                    modosit_gomb.innerText = "Módosítás";
+                    modosit_gomb.className = "modosit";
+                    modosit_gomb.onclick = () => {
+                        document.getElementById("nev").value = ember.name || "";
+                        document.getElementById("kor").value = ember.age || "";
+                        document.getElementById("dataid").value = ember.id;
+                        document.getElementById("hozzaad").textContent = "Módosít";
+                        document.getElementById("hozzaad").removeEventListener("click", adatfelvetel);
+                        document.getElementById("hozzaad").addEventListener("click", adatmodositas);
+                    };
+                    cellaModosit.append(modosit_gomb);
+                });
+            }
+            document.getElementById("table-container").innerHTML = "";
+            document.getElementById("table-container").append(table);
+        }
+
+        const deleteClicked = (ember) => {
+            if (confirm((ember.name) + ". Biztosan törlöd? ")) {
+                deleteElem(ember.id);
+            }
+        }
+
+        const deleteElem = async (id) => {
+            const response = await fetch(URL + "/" + id, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': "application/json",
+                }
+            });
+            if (response.ok) {
+                frissites();
+            }
+        }
+
+        const adatfelvetel = async () => {
+            const name = document.getElementById("nev").value;
+            const age = document.getElementById("kor").value;
+            if (!name || !age) {
+                alert("Minden mező kitöltése kötelező!");
+                return;
+            }
+            const ember = {
+                name: name,
+                age: age
+            }
+            const response = await fetch(URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': "application/json",
+                },
+                body: JSON.stringify(ember)
+            });
+            if (response.ok) {
+                frissites();
+            }
+        };
+
+        const adatmodositas = async () => {
+            const name = document.getElementById("nev").value;
+            const age = document.getElementById("kor").value;
+            const id = document.getElementById("dataid").value;
+            if (!name || !age) {
+                alert("Minden mező kitöltése kötelező!");
+                return;
+            }
+            const response = await fetch(URL + "/" + id, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    age: age
+                })
+            });
+            if (!response.ok) {
+                alert("Hiba történt a módosításnál...");
+                return;
+            }
+            document.getElementById("nev").value = "";
+            document.getElementById("kor").value = "";
+            document.getElementById("dataid").value = "";
+            document.getElementById("hozzaad").textContent = "Hozzáad";
+            document.getElementById("hozzaad").removeEventListener("click", adatmodositas);
+            document.getElementById("hozzaad").addEventListener("click", adatfelvetel);
+            frissites();
+        }
+
+        const frissites = async () => {
+            const table = document.getElementById("adatok");
+            if (table) table.remove();
+            await loadData();
+            kiiratas();
+        }
+    </script>
+</body>
+</html>
